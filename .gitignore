@@ -1,0 +1,17 @@
+﻿# Build artifacts
+build/
+dist/
+dist-*/
+_internal/
+
+# Bundles and archives
+*.7z
+*.zip
+*.rar
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local config
+Llama Monitor-config.json
