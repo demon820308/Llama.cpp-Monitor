@@ -182,15 +182,19 @@ class MimoLauncher(ctk.CTk):
 
         self.sample_frame = ctk.CTkFrame(self.form_frame, fg_color="transparent")
         self.sample_frame.pack(fill="x", pady=4)
-        self.sample_frame.grid_columnconfigure(0, minsize=label_w)
+        sample_label_w = 52
+        self.sample_frame.grid_columnconfigure(0, minsize=sample_label_w)
         self.sample_frame.grid_columnconfigure(1, weight=1)
         self.sample_frame.grid_columnconfigure(2, minsize=check_w)
-        self.sample_frame.grid_columnconfigure(3, minsize=55)
+        self.sample_frame.grid_columnconfigure(3, minsize=sample_label_w)
         self.sample_frame.grid_columnconfigure(4, weight=1)
         self.sample_frame.grid_columnconfigure(5, minsize=check_w)
-        self.sample_frame.grid_columnconfigure(6, minsize=55)
+        self.sample_frame.grid_columnconfigure(6, minsize=sample_label_w)
         self.sample_frame.grid_columnconfigure(7, weight=1)
         self.sample_frame.grid_columnconfigure(8, minsize=check_w)
+        self.sample_frame.grid_columnconfigure(9, minsize=sample_label_w)
+        self.sample_frame.grid_columnconfigure(10, weight=1)
+        self.sample_frame.grid_columnconfigure(11, minsize=check_w)
 
         ctk.CTkLabel(self.sample_frame, text="Temp:", anchor="w").grid(row=0, column=0, sticky="w", padx=(10, 6))
         self.temp = ctk.CTkEntry(self.sample_frame, placeholder_text="0.8")
@@ -208,13 +212,21 @@ class MimoLauncher(ctk.CTk):
         self.top_p_checkbox = ctk.CTkCheckBox(self.sample_frame, text="", variable=self.use_top_p_var, width=24)
         self.top_p_checkbox.grid(row=0, column=5, sticky="e", padx=(4, 0))
 
-        ctk.CTkLabel(self.sample_frame, text="Batch:", anchor="w").grid(row=0, column=6, sticky="w", padx=(6, 6))
+        ctk.CTkLabel(self.sample_frame, text="Top K:", anchor="w").grid(row=0, column=6, sticky="w", padx=(6, 6))
+        self.top_k = ctk.CTkEntry(self.sample_frame, placeholder_text="40")
+        self.top_k.insert(0, self.config.get("top_k", "40"))
+        self.top_k.grid(row=0, column=7, sticky="ew")
+        self.use_top_k_var = ctk.BooleanVar(value=self.config.get("use_top_k", True))
+        self.top_k_checkbox = ctk.CTkCheckBox(self.sample_frame, text="", variable=self.use_top_k_var, width=24)
+        self.top_k_checkbox.grid(row=0, column=8, sticky="e", padx=(4, 0))
+
+        ctk.CTkLabel(self.sample_frame, text="Batch:", anchor="w").grid(row=0, column=9, sticky="w", padx=(6, 6))
         self.batch_size = ctk.CTkEntry(self.sample_frame, placeholder_text="2048")
         self.batch_size.insert(0, self.config.get("batch_size", "2048"))
-        self.batch_size.grid(row=0, column=7, sticky="ew")
+        self.batch_size.grid(row=0, column=10, sticky="ew")
         self.use_batch_size_var = ctk.BooleanVar(value=self.config.get("use_batch_size", True))
         self.batch_checkbox = ctk.CTkCheckBox(self.sample_frame, text="", variable=self.use_batch_size_var, width=24)
-        self.batch_checkbox.grid(row=0, column=8, sticky="e", padx=(4, 10))
+        self.batch_checkbox.grid(row=0, column=11, sticky="e", padx=(4, 10))
 
 
 
@@ -295,12 +307,15 @@ class MimoLauncher(ctk.CTk):
 
         self.status_frame = ctk.CTkFrame(self.main_frame, corner_radius=8)
         self.status_frame.pack(fill="x", pady=8)
+        self.status_frame.grid_columnconfigure(0, minsize=55)
+        self.status_frame.grid_columnconfigure(1, weight=1)
+        self.status_frame.grid_columnconfigure(2, minsize=190)
 
-        ctk.CTkLabel(self.status_frame, text="Status:", anchor="w").pack(side="left", padx=10)
+        ctk.CTkLabel(self.status_frame, text="Status:", anchor="w").grid(row=0, column=0, sticky="w", padx=(10, 5), pady=6)
         self.status_label = ctk.CTkLabel(self.status_frame, text="Ready", anchor="w")
-        self.status_label.pack(side="left", fill="x", expand=True, padx=5)
-        self.port_label = ctk.CTkLabel(self.status_frame, text="Port: --", anchor="e")
-        self.port_label.pack(side="right", padx=10)
+        self.status_label.grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=6)
+        self.port_label = ctk.CTkLabel(self.status_frame, text="Port: --", anchor="e", width=190)
+        self.port_label.grid(row=0, column=2, sticky="e", padx=(0, 10), pady=6)
 
         self.log_frame = ctk.CTkFrame(self.main_frame, corner_radius=8)
         self.log_frame.pack(fill="both", expand=True, pady=8)
@@ -451,39 +466,47 @@ class MimoLauncher(ctk.CTk):
         return sorted(set(files)) if files else ["璇锋妸model鏀惧湪models鐨勭洰褰曚笅"]
 
     def start_monitoring(self):
-        def monitor():
-            while True:
-                cpu = psutil.cpu_percent(interval=1)
-                self.after(0, self.cpu_progress.set, cpu / 100)
-                self.after(0, self.cpu_label.configure, text=f"{cpu:.1f}%")
+        psutil.cpu_percent(interval=None)
+        self.refresh_monitor()
 
-                mem = psutil.virtual_memory()
-                mem_used = mem.used / (1024 ** 3)
-                mem_total = mem.total / (1024 ** 3)
-                self.after(0, self.mem_progress.set, mem.percent / 100)
-                self.after(0, self.mem_label.configure, text=f"{mem_used:.1f}GB / {mem_total:.1f}GB")
+    def refresh_monitor(self):
+        try:
+            cpu = psutil.cpu_percent(interval=None)
+            self.cpu_progress.set(cpu / 100)
+            self.cpu_label.configure(text=f"{cpu:.1f}%")
 
-                if HAS_NVML and self.gpu_handle:
-                    try:
-                        gpu_info = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
-                        gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
-                        gpu_used = gpu_info.used / (1024 ** 3)
-                        gpu_total = gpu_info.total / (1024 ** 3)
-                        self.after(0, self.gpu_progress.set, gpu_util.gpu / 100)
-                        self.after(0, self.gpu_label.configure, text=f"{gpu_used:.1f}GB / {gpu_total:.1f}GB")
-                    except Exception:
-                        self.after(0, self.gpu_label.configure, text="Error")
-                else:
-                    self.after(0, self.gpu_label.configure, text="N/A (no NVIDIA)")
+            mem = psutil.virtual_memory()
+            mem_used = mem.used / (1024 ** 3)
+            mem_total = mem.total / (1024 ** 3)
+            self.mem_progress.set(mem.percent / 100)
+            self.mem_label.configure(text=f"{mem_used:.1f}GB / {mem_total:.1f}GB")
 
-                port = self.port.get()
-                if self.is_port_open(port):
-                    self.after(0, self.port_label.configure, text=f"Port {port}: Listening", text_color="green")
-                    self.after(0, self.status_label.configure, text="Running", text_color="green")
-                else:
-                    self.after(0, self.port_label.configure, text=f"Port {port}: Closed", text_color="orange")
+            if HAS_NVML and self.gpu_handle:
+                try:
+                    gpu_info = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
+                    gpu_util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
+                    gpu_used = gpu_info.used / (1024 ** 3)
+                    gpu_total = gpu_info.total / (1024 ** 3)
+                    self.gpu_progress.set(gpu_util.gpu / 100)
+                    self.gpu_label.configure(text=f"{gpu_used:.1f}GB / {gpu_total:.1f}GB")
+                except Exception:
+                    self.gpu_label.configure(text="Error")
+            else:
+                self.gpu_label.configure(text="N/A (no NVIDIA)")
 
-        threading.Thread(target=monitor, daemon=True).start()
+            port = self.port.get().strip() or "--"
+            if self.is_port_open(port):
+                self.port_label.configure(text=f"Port {port}: Listening", text_color="green")
+                self.status_label.configure(text="Running", text_color="green")
+            else:
+                self.port_label.configure(text=f"Port {port}: Closed", text_color="orange")
+                if self.is_running:
+                    self.status_label.configure(text="Running...", text_color="green")
+        except Exception as exc:
+            self.port_label.configure(text="Port: Error", text_color="red")
+            self.log(f"[ERROR] Monitor update failed: {exc}")
+        finally:
+            self.after(1000, self.refresh_monitor)
 
     def is_port_open(self, port):
         try:
@@ -528,6 +551,8 @@ class MimoLauncher(ctk.CTk):
             "use_temp": self.use_temp_var.get(),
             "top_p": self.top_p.get(),
             "use_top_p": self.use_top_p_var.get(),
+            "top_k": self.top_k.get(),
+            "use_top_k": self.use_top_k_var.get(),
             "workdir": self.workdir.get(),
         }
         with open(CONFIG_FILE, "w", encoding="utf-8") as file:
@@ -576,6 +601,8 @@ class MimoLauncher(ctk.CTk):
             cmd.extend(["--temp", self.temp.get().strip()])
         if self.use_top_p_var.get() and self.top_p.get().strip():
             cmd.extend(["--top-p", self.top_p.get().strip()])
+        if self.use_top_k_var.get() and self.top_k.get().strip():
+            cmd.extend(["--top-k", self.top_k.get().strip()])
 
         self.log("[INFO] Starting server...")
         self.log(f"[CMD] {' '.join(cmd)}")
